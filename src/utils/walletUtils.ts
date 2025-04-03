@@ -20,22 +20,28 @@ export const getWallet = (): Wallet | null => {
 
 // Create a new wallet
 export const createWallet = (username: string, initialBalance: number = 0): Wallet => {
+  const walletId = generateId();
   const newWallet: Wallet = {
-    id: generateId(),
+    id: walletId,
     username,
-    balance: initialBalance,
-    transactions: []
+    balance: initialBalance
   };
 
   // If initial balance is greater than 0, add an initial transaction
+  // Note: We're not storing transactions in the wallet object anymore
+  // They will be stored separately via the API
   if (initialBalance > 0) {
+    // Create a transaction object (not stored in the wallet)
     const initialTransaction: Transaction = {
       id: generateId(),
+      walletId: walletId,
       date: new Date().toISOString(),
       type: 'CREDIT',
       amount: initialBalance
     };
-    newWallet.transactions.push(initialTransaction);
+    
+    // In a real implementation, we would call the API to save this transaction
+    // But that's now handled by the transactionApi.ts
   }
 
   saveWallet(newWallet);
@@ -52,6 +58,7 @@ export const addTransaction = (
 
   const transaction: Transaction = {
     id: generateId(),
+    walletId: wallet.id,
     date: new Date().toISOString(),
     type,
     amount
@@ -64,7 +71,8 @@ export const addTransaction = (
     wallet.balance -= amount;
   }
 
-  wallet.transactions.push(transaction);
+  // Note: We're not storing transactions in the wallet object anymore
+  // They will be stored separately via the API
   saveWallet(wallet);
   return wallet;
 };

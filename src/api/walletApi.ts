@@ -1,6 +1,7 @@
 
 import apiClient from './apiClient';
 import { Wallet } from '../types/wallet';
+import axios from 'axios'; // Added missing import
 
 export const getStoredWalletId = (): string | null => {
   return localStorage.getItem('walletId');
