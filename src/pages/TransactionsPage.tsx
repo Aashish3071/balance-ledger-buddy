@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import TransactionsTable from '../components/TransactionsTable';
 import { Button } from "@/components/ui/button";
 import Layout from '../components/Layout';
-import { getWallet, resetWallet } from '../utils/walletUtils';
+import { getStoredWalletId, getWallet, resetWallet } from '../api/walletApi';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from "@/components/ui/use-toast";
 import { Wallet } from '../types/wallet';
@@ -18,20 +18,41 @@ const TransactionsPage = () => {
     loadWallet();
   }, []);
 
-  const loadWallet = () => {
+  const loadWallet = async () => {
     setLoading(true);
-    const savedWallet = getWallet();
-    setWallet(savedWallet);
-    setLoading(false);
+    try {
+      const walletId = getStoredWalletId();
+      
+      if (walletId) {
+        const walletData = await getWallet(walletId);
+        setWallet(walletData);
+      } else {
+        setWallet(null);
+      }
+    } catch (error) {
+      console.error('Error loading wallet:', error);
+      setWallet(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReset = () => {
-    resetWallet();
-    toast({
-      title: "Wallet Reset",
-      description: "Your wallet has been reset successfully.",
-    });
-    loadWallet();
+  const handleReset = async () => {
+    try {
+      await resetWallet();
+      toast({
+        title: "Wallet Reset",
+        description: "Your wallet has been reset successfully.",
+      });
+      loadWallet();
+    } catch (error) {
+      console.error('Error resetting wallet:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to reset wallet. Please try again.",
+      });
+    }
   };
 
   if (loading) {
@@ -81,7 +102,7 @@ const TransactionsPage = () => {
         </AlertDialog>
       </div>
       
-      <TransactionsTable transactions={wallet.transactions} />
+      <TransactionsTable />
     </Layout>
   );
 };

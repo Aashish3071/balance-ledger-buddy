@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { createWallet } from '../utils/walletUtils';
+import { createWallet } from '../api/walletApi';
 import { useToast } from "@/components/ui/use-toast";
 
 interface WalletSetupProps {
@@ -18,7 +18,7 @@ const WalletSetup: React.FC<WalletSetupProps> = ({ onWalletCreated }) => {
   const [errors, setErrors] = useState({ username: '', initialBalance: '' });
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate form
@@ -43,13 +43,14 @@ const WalletSetup: React.FC<WalletSetupProps> = ({ onWalletCreated }) => {
     // Create new wallet
     setIsSubmitting(true);
     try {
-      createWallet(username.trim(), balanceValue);
+      await createWallet(username.trim(), balanceValue);
       toast({
         title: "Wallet created!",
         description: `Welcome ${username}! Your wallet has been set up successfully.`,
       });
       onWalletCreated();
     } catch (error) {
+      console.error('Error creating wallet:', error);
       toast({
         variant: "destructive",
         title: "Error",

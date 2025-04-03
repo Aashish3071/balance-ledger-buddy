@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowDown, ArrowUp, Download } from 'lucide-react';
 import {
   Table,
@@ -11,18 +11,49 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency, formatDate, exportToCSV } from '../utils/walletUtils';
-import { Transaction } from '../types/wallet';
+import { formatCurrency, formatDate, exportToCSV, getTransactions } from '../api/transactionApi';
+import { Transaction, PaginationParams } from '../types/wallet';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { useToast } from "@/components/ui/use-toast";
 
-interface TransactionsTableProps {
-  transactions: Transaction[];
-}
-
-const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions }) => {
+const TransactionsTable: React.FC = () => {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
   const [sortField, setSortField] = useState<'date' | 'amount'>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const itemsPerPage = 10;
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [currentPage, sortField, sortDirection]);
+
+  const fetchTransactions = async () => {
+    setLoading(true);
+    try {
+      const params: PaginationParams = {
+        _page: currentPage,
+        _limit: itemsPerPage,
+        _sort: sortField,
+        _order: sortDirection,
+      };
+
+      const { transactions, total } = await getTransactions(params);
+      setTransactions(transactions);
+      setTotalItems(total);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load transactions. Please try again.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSort = (field: 'date' | 'amount') => {
     if (sortField === field) {
@@ -33,25 +64,24 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions }) =
     }
   };
 
-  const sortedTransactions = [...transactions].sort((a, b) => {
-    if (sortField === 'date') {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
-    } else {
-      return sortDirection === 'asc' ? a.amount - b.amount : b.amount - a.amount;
+  const handleExport = async () => {
+    try {
+      await exportToCSV();
+      toast({
+        title: "Export successful",
+        description: "Transactions have been exported to CSV.",
+      });
+    } catch (error) {
+      console.error('Error exporting transactions:', error);
+      toast({
+        variant: "destructive",
+        title: "Export failed",
+        description: "Failed to export transactions. Please try again.",
+      });
     }
-  });
-
-  const totalPages = Math.ceil(sortedTransactions.length / itemsPerPage);
-  const paginatedTransactions = sortedTransactions.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const handleExport = () => {
-    exportToCSV(transactions);
   };
+
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   return (
     <Card className="w-full">
@@ -62,14 +92,18 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions }) =
           variant="outline" 
           className="flex gap-1 items-center"
           size="sm"
-          disabled={transactions.length === 0}
+          disabled={transactions.length === 0 || loading}
         >
           <Download className="h-4 w-4" />
           Export CSV
         </Button>
       </CardHeader>
       <CardContent>
-        {transactions.length > 0 ? (
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+          </div>
+        ) : transactions.length > 0 ? (
           <>
             <div className="rounded-md border overflow-hidden">
               <Table>
@@ -113,7 +147,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions }) =
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedTransactions.map(transaction => (
+                  {transactions.map(transaction => (
                     <TableRow key={transaction.id}>
                       <TableCell className="font-medium">
                         {formatDate(transaction.date)}
@@ -142,26 +176,38 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions }) =
             
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  Previous
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </Button>
+              <div className="mt-4">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const pageNum = i + 1;
+                      return (
+                        <PaginationItem key={pageNum}>
+                          <PaginationLink
+                            isActive={currentPage === pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                          >
+                            {pageNum}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    })}
+                    
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               </div>
             )}
           </>

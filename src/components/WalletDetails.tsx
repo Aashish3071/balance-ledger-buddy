@@ -4,15 +4,16 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowDown, ArrowUp, ClipboardList, UserCircle } from 'lucide-react';
-import { formatCurrency } from '../utils/walletUtils';
-import { Wallet } from '../types/wallet';
+import { formatCurrency, formatDate } from '../api/transactionApi';
+import { Wallet, Transaction } from '../types/wallet';
 
 interface WalletDetailsProps {
   wallet: Wallet;
+  transactions: Transaction[];
 }
 
-const WalletDetails: React.FC<WalletDetailsProps> = ({ wallet }) => {
-  const lastFiveTransactions = [...wallet.transactions]
+const WalletDetails: React.FC<WalletDetailsProps> = ({ wallet, transactions }) => {
+  const lastFiveTransactions = [...transactions]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
 

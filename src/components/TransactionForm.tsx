@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { addTransaction } from '../utils/walletUtils';
+import { addTransaction } from '../api/transactionApi';
 import { useToast } from "@/components/ui/use-toast";
 
 interface TransactionFormProps {
@@ -19,7 +19,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onTransactionAdded })
   const [error, setError] = useState('');
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate amount
@@ -33,9 +33,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onTransactionAdded })
     setIsSubmitting(true);
     
     try {
-      const updatedWallet = addTransaction(type, amountValue);
+      const result = await addTransaction(type, amountValue);
       
-      if (updatedWallet) {
+      if (result) {
         toast({
           title: "Transaction added",
           description: `${type === 'CREDIT' ? 'Deposited' : 'Withdrew'} $${amountValue.toFixed(2)}`,
@@ -53,6 +53,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onTransactionAdded })
         });
       }
     } catch (error) {
+      console.error('Error adding transaction:', error);
       toast({
         variant: "destructive",
         title: "Error",
